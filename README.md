@@ -1,9 +1,14 @@
 # PyTorch-ViT_2-way-classification-task
 
-# ViTGAN-pytorch
-A PyTorch implementation of [VITGAN: Training GANs with Vision Transformers](https://arxiv.org/pdf/2107.04589v1.pdf)
+The pre-trained model comes from: https://github.com/jeonsworld/ViT-pytorch 
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1kJJw6BYW01HgooCZ2zUDt54e1mXqITXH?usp=sharing)
+The dataset comes from: https://www.kaggle.com/datasets/gauravduttakiit/ants-bees 
+
+Related documents are located at Google Drive [here](https://drive.google.com/drive/folders/1IAgC6-jFB4F_0LY0_etnp_qlL4qGGPYn?usp=sharing).  
+
+A short report [here](https://drive.google.com/file/d/1D6pGS9TRc73ADaWxaJemCreopW1RGMtK/view?usp=sharing).
+
+The training dashboard is located [here](https://tensorboard.dev/experiment/zMt91UzwQR6uMYaxyZyqOw/#scalars)
 
 ## TODO:
 1.   [x] Use vectorized L2 distance in attention for **Discriminator**
@@ -19,20 +24,9 @@ A PyTorch implementation of [VITGAN: Training GANs with Vision Transformers](htt
 
 # ViT PyTorch
 
-### Quickstart
-
-Install with `pip install pytorch_pretrained_vit` and load a pretrained ViT with:
-```python
-from pytorch_pretrained_vit import ViT
-model = ViT('B_16_imagenet1k', pretrained=True)
-```
-
-Or find a Google Colab example [here](https://drive.google.com/drive/folders/1IAgC6-jFB4F_0LY0_etnp_qlL4qGGPYn?usp=sharing).  
 
 ### Overview
-This repository contains an op-for-op PyTorch reimplementation of the [Visual Transformer](https://openreview.net/forum?id=YicbFdNTTy) architecture from [Google](https://github.com/google-research/vision_transformer), along with pre-trained models and examples.
-
-The goal of this implementation is to be simple, highly extensible, and easy to integrate into your own projects. 
+The goal of this task is a bi-directional classification task (i.e. between bees and ants) of the dataset using vit
 
 At the moment, you can easily:
  * Load pretrained ViT models
@@ -119,77 +113,6 @@ config = dict(hidden_size=512, num_heads=8, num_layers=6)
 model = ViT.from_config(config)
 ```
 
-#### Example: Classification
-
-Below is a simple, complete example. It may also be found as a Jupyter notebook in `examples/simple` or as a [Colab Notebook]().  
-<!-- TODO: new Colab -->
-
-```python
-import json
-from PIL import Image
-import torch
-from torchvision import transforms
-
-# Load ViT
-from pytorch_pretrained_vit import ViT
-model = ViT('B_16_imagenet1k', pretrained=True)
-model.eval()
-
-# Load image
-# NOTE: Assumes an image `img.jpg` exists in the current directory
-img = transforms.Compose([
-    transforms.Resize((384, 384)), 
-    transforms.ToTensor(),
-    transforms.Normalize(0.5, 0.5),
-])(Image.open('img.jpg')).unsqueeze(0)
-print(img.shape) # torch.Size([1, 3, 384, 384])
-
-# Classify
-with torch.no_grad():
-    outputs = model(img)
-print(outputs.shape)  # (1, 1000)
-```
-
-<!-- #### Example: Feature Extraction
-
-You can easily extract features with `model.extract_features`:
-```python
-from efficientnet_pytorch import EfficientNet
-model = EfficientNet.from_pretrained('efficientnet-b0')
-
-# ... image preprocessing as in the classification example ...
-print(img.shape) # torch.Size([1, 3, 384, 384])
-
-features = model.extract_features(img)
-print(features.shape) # torch.Size([1, 1280, 7, 7])
-``` -->
-
-<!-- #### Example: Export to ONNX
-
-Exporting to ONNX for deploying to production is now simple:
-```python
-import torch
-from efficientnet_pytorch import EfficientNet
-
-model = EfficientNet.from_pretrained('efficientnet-b1')
-dummy_input = torch.randn(10, 3, 240, 240)
-
-model.set_swish(memory_efficient=False)
-torch.onnx.export(model, dummy_input, "test-b1.onnx", verbose=True)
-```
-
-[Here](https://colab.research.google.com/drive/1rOAEXeXHaA8uo3aG2YcFDHItlRJMV0VP) is a Colab example. -->
-
-
-#### ImageNet
-
-See `examples/imagenet` for details about evaluating on ImageNet.
-
-#### Credit
-
-Other great repositories with this model include: 
- - [Ross Wightman's repo](https://github.com/rwightman/pytorch-image-models)
- - [Phil Wang's repo](https://github.com/lucidrains/vit-pytorch)
 
 ### Contributing
 
