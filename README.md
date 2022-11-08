@@ -27,7 +27,7 @@ from pytorch_pretrained_vit import ViT
 model = ViT('B_16_imagenet1k', pretrained=True)
 ```
 
-Or find a Google Colab example [here](https://colab.research.google.com/drive/1muZ4QFgVfwALgqmrfOkp7trAvqDemckO?usp=sharing).  
+Or find a Google Colab example [here]([https://colab.research.google.com/drive/1muZ4QFgVfwALgqmrfOkp7trAvqDemckO?usp=sharing](https://drive.google.com/drive/folders/1IAgC6-jFB4F_0LY0_etnp_qlL4qGGPYn?usp=sharing)).  
 
 ### Overview
 This repository contains an op-for-op PyTorch reimplementation of the [Visual Transformer](https://openreview.net/forum?id=YicbFdNTTy) architecture from [Google](https://github.com/google-research/vision_transformer), along with pre-trained models and examples.
