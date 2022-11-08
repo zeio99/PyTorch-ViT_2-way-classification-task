@@ -17,126 +17,182 @@ A PyTorch implementation of [VITGAN: Training GANs with Vision Transformers](htt
 8.   [x] Equalized Learning Rate
 9.   [x] Weight Modulation
 
-## Dependencies
+# ViT PyTorch
 
-- Python3
-- einops
-- pytorch_ema
-- stylegan2-pytorch
-- tensorboard
-- wandb
+### Quickstart
 
-``` bash
-pip install einops git+https://github.com/fadel/pytorch_ema stylegan2-pytorch tensorboard wandb
+Install with `pip install pytorch_pretrained_vit` and load a pretrained ViT with:
+```python
+from pytorch_pretrained_vit import ViT
+model = ViT('B_16_imagenet1k', pretrained=True)
 ```
 
-## **TLDR:**
+Or find a Google Colab example [here](https://colab.research.google.com/drive/1muZ4QFgVfwALgqmrfOkp7trAvqDemckO?usp=sharing).  
 
-Train the model with the proposed parameters:
+### Overview
+This repository contains an op-for-op PyTorch reimplementation of the [Visual Transformer](https://openreview.net/forum?id=YicbFdNTTy) architecture from [Google](https://github.com/google-research/vision_transformer), along with pre-trained models and examples.
 
-``` bash
-python main.py
+The goal of this implementation is to be simple, highly extensible, and easy to integrate into your own projects. 
+
+At the moment, you can easily:
+ * Load pretrained ViT models
+ * Evaluate on ImageNet or your own data
+ * Finetune ViT on your own dataset
+
+_(Upcoming features)_ Coming soon: 
+ * Train ViT from scratch on ImageNet (1K)
+ * Export to ONNX for efficient inference
+
+### Table of contents
+1. [About ViT](#about-vit)
+2. [About ViT-PyTorch](#about-vit-pytorch)
+3. [Installation](#installation)
+4. [Usage](#usage)
+    * [Load pretrained models](#loading-pretrained-models)
+    * [Example: Classify](#example-classification)
+    <!-- * [Example: Extract features](#example-feature-extraction) -->
+    <!-- * [Example: Export to ONNX](#example-export) -->
+6. [Contributing](#contributing)
+
+### About ViT
+
+Visual Transformers (ViT) are a straightforward application of the [transformer architecture](https://arxiv.org/abs/1706.03762) to image classification. Even in computer vision, it seems, attention is all you need. 
+
+The ViT architecture works as follows: (1) it considers an image as a 1-dimensional sequence of patches, (2) it prepends a classification token to the sequence, (3) it passes these patches through a transformer encoder (like [BERT](https://arxiv.org/abs/1810.04805)), (4) it passes the first token of the output of the transformer through a small MLP to obtain the classification logits. 
+ViT is trained on a large-scale dataset (ImageNet-21k) with a huge amount of compute. 
+
+<div style="text-align: center; padding: 10px">
+    <img src="https://raw.githubusercontent.com/google-research/vision_transformer/master/figure1.png" width="100%" style="max-width: 300px; margin: auto"/>
+</div>
+
+
+### About ViT-PyTorch
+
+ViT-PyTorch is a PyTorch re-implementation of ViT. It is consistent with the [original Jax implementation](https://github.com/google-research/vision_transformer), so that it's easy to load Jax-pretrained weights.
+
+At the same time, we aim to make our PyTorch implementation as simple, flexible, and extensible as possible.
+
+### Installation
+
+Install with pip:
+```bash
+pip install pytorch_pretrained_vit
 ```
 
-Tensorboard
-
-``` bash
-tensorboard --logdir runs/
+Or from source:
+```bash
+git clone https://github.com/lukemelas/ViT-PyTorch
+cd ViT-Pytorch
+pip install -e .
 ```
 
-***
+### Usage
 
-The following parameters are the parameters, proposed in the paper for the CIFAR-10 dataset:
+#### Loading pretrained models
 
-``` bash
-python main.py
+Loading a pretrained model is easy:
+```python
+from pytorch_pretrained_vit import ViT
+model = ViT('B_16_imagenet1k', pretrained=True)
 ```
 
-## Implementation Details
+Details about the models are below:
 
-### Generator
+|    *Name*         |* Pretrained on *|*Finetuned on*|*Available? *|
+|:-----------------:|:---------------:|:------------:|:-----------:|
+| `B_16`            |  ImageNet-21k   | -            |      ✓      |
+| `B_32`            |  ImageNet-21k   | -            |      ✓      |
+| `L_16`            |  ImageNet-21k   | -            |      -      |
+| `L_32`            |  ImageNet-21k   | -            |      ✓      |
+| `B_16_imagenet1k` |  ImageNet-21k   | ImageNet-1k  |      ✓      |
+| `B_32_imagenet1k` |  ImageNet-21k   | ImageNet-1k  |      ✓      |
+| `L_16_imagenet1k` |  ImageNet-21k   | ImageNet-1k  |      ✓      |
+| `L_32_imagenet1k` |  ImageNet-21k   | ImageNet-1k  |      ✓      |
 
-The Generator follows the following architecture:
+#### Custom ViT
 
-![ViTGAN Generator architecture](https://drive.google.com/uc?export=view&id=1XaCVOLq8Bvg-I3qM-bugNZcjIW5L7XTO)
+Loading custom configurations is just as easy: 
+```python
+from pytorch_pretrained_vit import ViT
+# The following is equivalent to ViT('B_16')
+config = dict(hidden_size=512, num_heads=8, num_layers=6)
+model = ViT.from_config(config)
+```
 
-For debugging purposes, the Generator is separated into a Vision Transformer (ViT) model and a SIREN model.
+#### Example: Classification
 
-Given a seed, the dimensionality of which is controlled by ```latent_dim```, the ViT model creates an embedding for each of the patches of the final image. Those embeddings are fed to a SIREN network, combined with a Fourier Position Encoding \([Jupyter Notebook](https://github.com/tancik/fourier-feature-networks/blob/master/Demo.ipynb)\). It outputs the patches of the image, which are stitched together.
+Below is a simple, complete example. It may also be found as a Jupyter notebook in `examples/simple` or as a [Colab Notebook]().  
+<!-- TODO: new Colab -->
 
-The ViT part of the Generator differs from a standard Vision Transformer in the following ways:
-- The input to the Transformer consists only of the position embeddings
-- Self-Modulated Layer Norm (SLN) is used in place of LayerNorm
-- There is no classification head
+```python
+import json
+from PIL import Image
+import torch
+from torchvision import transforms
 
-SLN is the only place, where the seed is inputted to the network. <br/>
-SLN consists of a regular LayerNorm, the result of which is multiplied by ```gamma``` and added to ```beta```. <br/>
-Both ```gamma``` and ```beta``` are calculated using a fully connected layer, different for each place, SLN is applied. <br/>
-The input dimension to each of those fully connected is equal to ```hidden_dimension``` and the output dimension is equal to ```hidden_dimension```.
+# Load ViT
+from pytorch_pretrained_vit import ViT
+model = ViT('B_16_imagenet1k', pretrained=True)
+model.eval()
 
-#### SIREN
+# Load image
+# NOTE: Assumes an image `img.jpg` exists in the current directory
+img = transforms.Compose([
+    transforms.Resize((384, 384)), 
+    transforms.ToTensor(),
+    transforms.Normalize(0.5, 0.5),
+])(Image.open('img.jpg')).unsqueeze(0)
+print(img.shape) # torch.Size([1, 3, 384, 384])
 
-A description of SIREN:
-\[[Blog Post](https://tech.fusic.co.jp/posts/2021-08-03-what-are-sirens/)\] \[[Paper](https://arxiv.org/pdf/2006.09661.pdf)\] \[[Colab Notebook](https://colab.research.google.com/github/vsitzmann/siren/blob/master/explore_siren.ipynb)\]
+# Classify
+with torch.no_grad():
+    outputs = model(img)
+print(outputs.shape)  # (1, 1000)
+```
 
-In contrast to regular SIREN, the desired output is not a single image. For this purpose, the patch embedding is combined to a position embedding.
+<!-- #### Example: Feature Extraction
 
-The positional encoding, used in ViTGAN is the Fourier Position Encoding, the code for which was taken from here: \([Jupyter Notebook](https://github.com/tancik/fourier-feature-networks/blob/master/Demo.ipynb)\)
+You can easily extract features with `model.extract_features`:
+```python
+from efficientnet_pytorch import EfficientNet
+model = EfficientNet.from_pretrained('efficientnet-b0')
 
-In my implementation, the input to the SIREN is the sum of a patch embedding and a position embedding.
+# ... image preprocessing as in the classification example ...
+print(img.shape) # torch.Size([1, 3, 384, 384])
 
-#### Weight Modulation
+features = model.extract_features(img)
+print(features.shape) # torch.Size([1, 1280, 7, 7])
+``` -->
 
-Weight Modulation usually consists of a modulation and a demodulation module. After testing the network, I concluded that **demodulation is not used in ViTGAN**.
+<!-- #### Example: Export to ONNX
 
-My implementation of the weight modulation is heavily based on [CIPS](https://github.com/saic-mdal/CIPS/blob/main/model/blocks.py#L173). I have adjusted it to work for a fully-connected network, using a 1D convolution. The reason for using 1D convolution, instead of a linear layer is the groups term, which optimizes the performance by a factor of batch_size.
+Exporting to ONNX for deploying to production is now simple:
+```python
+import torch
+from efficientnet_pytorch import EfficientNet
 
-Each SIREN layer consists of a sinsin activation, applied to a weight modulation layer. The size of the input, the hidden and the output layers in a SIREN network could vary. Thus, in case the input size differs from the size of the patch embedding, I define an additional fully-connected layer, which converts the patch embedding to the appropriate size.
+model = EfficientNet.from_pretrained('efficientnet-b1')
+dummy_input = torch.randn(10, 3, 240, 240)
 
-### Discriminator
+model.set_swish(memory_efficient=False)
+torch.onnx.export(model, dummy_input, "test-b1.onnx", verbose=True)
+```
 
-The Discriminator follows the following architecture:
+[Here](https://colab.research.google.com/drive/1rOAEXeXHaA8uo3aG2YcFDHItlRJMV0VP) is a Colab example. -->
 
-![ViTGAN Discriminator architecture](https://drive.google.com/uc?export=view&id=1LK-WLwNGXqAhJ44MAexSHOyPkyiGapys)
 
-The ViTGAN Discriminator is mostly a standard Vision Transformer network, with the following modifications:
-- DiffAugment
-- Overlapping Image Patches
-- Use vectorized L2 distance in attention for **Discriminator**
-- Improved Spectral Normalization (ISN)
-- Balanced Consistency Regularization (bCR)
+#### ImageNet
 
-#### DiffAugment
+See `examples/imagenet` for details about evaluating on ImageNet.
 
-For implementating DiffAugment, I used the code below: <br/>
-\[[GitHub](https://github.com/mit-han-lab/data-efficient-gans/blob/master/DiffAugment-stylegan2-pytorch/DiffAugment_pytorch.py)\] \[[Paper](https://arxiv.org/pdf/2006.10738.pdf)\]
+#### Credit
 
-#### Overlapping Image Patches
+Other great repositories with this model include: 
+ - [Ross Wightman's repo](https://github.com/rwightman/pytorch-image-models)
+ - [Phil Wang's repo](https://github.com/lucidrains/vit-pytorch)
 
-Creation of the overlapping image patches is implemented with the use of a convolution layer.
+### Contributing
 
-#### Use vectorized L2 distance in attention for **Discriminator**
+If you find a bug, create a GitHub issue, or even better, submit a pull request. Similarly, if you have questions, simply post them as GitHub issues.
 
-\[[Paper](https://arxiv.org/pdf/2006.04710.pdf)\]
-
-#### Improved Spectral Normalization (ISN)
-
-The ISN implementation is based on the following implementation of Spectral Normalization: <br/>
-\[[GitHub](https://github.com/koshian2/SNGAN/blob/117fbb19ac79bbc561c3ccfe285d6890ea0971f9/models/core_layers.py#L9)\]
-\[[Paper](https://arxiv.org/abs/1802.05957)\]
-
-#### Balanced Consistency Regularization (bCR)
-
-Zhengli Zhao, Sameer Singh, Honglak Lee, Zizhao Zhang, Augustus Odena, Han Zhang; Improved Consistency Regularization for GANs; AAAI 2021
-\[[Paper](https://arxiv.org/pdf/2002.04724.pdf)\]
-
-## References
-SIREN: [Implicit Neural Representations with Periodic Activation Functions](https://arxiv.org/pdf/2006.09661.pdf) <br/>
-Vision Transformer: \[[Blog Post](https://towardsdatascience.com/implementing-visualttransformer-in-pytorch-184f9f16f632)\] <br/>
-L2 distance attention: [The Lipschitz Constant of Self-Attention](https://arxiv.org/pdf/2006.04710.pdf) <br/>
-Spectral Normalization reference code: \[[GitHub](https://github.com/koshian2/SNGAN/blob/117fbb19ac79bbc561c3ccfe285d6890ea0971f9/models/core_layers.py#L9)\] \[[Paper](https://arxiv.org/abs/1802.05957)\] <br/>
-Diff Augment: \[[GitHub](https://github.com/mit-han-lab/data-efficient-gans/blob/master/DiffAugment-stylegan2-pytorch/DiffAugment_pytorch.py)\] \[[Paper](https://arxiv.org/pdf/2006.10738.pdf)\] <br/>
-Fourier Position Embedding: \[[Jupyter Notebook](https://github.com/tancik/fourier-feature-networks/blob/master/Demo.ipynb)\] <br/>
-Exponential Moving Average: \[[GitHub](https://github.com/fadel/pytorch_ema)\] <br/>
-Balanced Concictancy Regularization (bCR): \[[Paper](https://arxiv.org/pdf/2002.04724.pdf)\] <br/>
-SyleGAN2 Discriminator: \[[GitHub](https://github.com/lucidrains/stylegan2-pytorch/blob/1a789d186b9697571bd6bbfa8bb1b9735bb42a0c/stylegan2_pytorch/stylegan2_pytorch.py#L627)\] <br/>
+I look forward to seeing what the community does with these models!
